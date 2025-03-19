@@ -19,16 +19,21 @@ Item {
             clipFar: far
             clipNear: near
             fieldOfView: fov
-            position: pos
+            // position: pos
             eulerRotation: rot
-            // position: Qt.vector3d(0, 0, 5)
-            onZChanged: originNode.updateManagerCamera()
+            position: pos
+            onZChanged: {
+                // console.log("z change")
+                originNode.updateManagerCamera()
+            }
         }
         onPositionChanged:  {
+            // console.log("position change")
             updateManagerCamera()
         }
 
         onRotationChanged: {
+            // console.log("rotation change")
             updateManagerCamera()
         }
 

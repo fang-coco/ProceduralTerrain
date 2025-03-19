@@ -31,6 +31,10 @@ qt_add_qml_module(appProceduralTerrain
 		SOURCES graphics.h graphics.cpp
 		RESOURCES shaders/test.vert
 		RESOURCES shaders/test.frag
+		SOURCES Plane.h
+		RESOURCES shaders/plane.frag
+		RESOURCES shaders/plane.vert
+		QML_FILES Setting.qml
 )
 
 # Qt for iOS sets MACOSX_BUNDLE_GUI_IDENTIFIER automatically since Qt 6.1.
