@@ -5,7 +5,7 @@
 * 使用QQuickFramebufferObject接口调用OpenGL的API绘制图形。
 * 使用Quick3D模块的OrbitCameraController和PerspectiveCamera组件实现相机系统。
 
-![testshow](showdemo/testshow.mov) 
+![testshow](showdemo/testshow.gif) 
 
 
 ### Part2
@@ -15,5 +15,5 @@
 
 ![planeshow](showdemo/showplane.png) 
 
-![planeshow](showdemo/showplane.mov) 
+![planeshow](showdemo/showplane.gif) 
 
