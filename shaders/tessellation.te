@@ -1,0 +1,131 @@
+#version 400 core
+
+// layout (quads, equal_spacing, ccw) in;
+//
+// void main()
+// {
+// float u = gl_TessCoord.x;
+// float um = 1 - u;
+// float v = gl_TessCoord.y;
+// float vm = 1 - v;
+//
+// // 插值的方法计算映射到顶点的坐标系中
+// gl_Position = um * vm * gl_in[0].gl_Position
+// + u * vm * gl_in[1].gl_Position
+// + u * v  * gl_in[2].gl_Position
+// + um * v * gl_in[3].gl_Position;
+// }
+
+
+
+// layout(quads, equal_spacing, ccw) in;
+//
+// uniform mat4 model;
+// uniform mat4 view;
+// uniform mat4 projection;
+//
+// void main()
+// {
+// // 定义常量
+// const float PI = 3.1415926;
+// 	const float radius = 1.0;
+// 	// 细分坐标(u,v)在0到1之间，
+// 	float u = gl_TessCoord.x; // 横向划分的顶点，划分段更多，作为圆周的划分
+// 	float v = gl_TessCoord.y; // 纵向划分的顶点，划分较少，作为轴向的划分
+//
+// // 将一个顶点扩展成一个轴，这里硬编码一个x轴方向上从-5到5的轴
+// float offset[] = float[2](-5, 5);
+// 	vec4 position = gl_in[0].gl_Position;
+// 	vec3 startPt= vec3(position.x + offset[0], position.y, position.z);
+// 	vec3 endPt= vec3(position.x + offset[1], position.y, position.z);
+// 	vec3 dir = endPt - startPt;
+//
+// // 圆形横截面的x轴和y轴, 直接硬编码
+// float angleRadians = u * 2.0f * PI;
+// 	vec3 baseXdir = vec3(0.0, 1.0, 0.0);
+// 	vec3 baseYdir = vec3(0.0, 0.0, 1.0);
+// 	// 以较少的细分等级计算，轴线上的点作为该细分等级的圆心
+// 	vec3 originPoint = startPt + v * dir;
+// 	// 以圆心为原点，以另圆周的细分维度计算圆上的点
+// 	vec4 point = vec4(originPoint + radius * cos(angleRadians) * baseXdir + radius * sin(angleRadians) * baseYdir, 1.0);
+// 	// 求解最终的位置
+// 	gl_Position = projection * view * model * point;
+// }
+
+
+
+layout(quads, equal_spacing, ccw) in;
+
+uniform mat4 model;
+uniform mat4 view;
+uniform mat4 projection;
+
+void main()
+{
+// 定义常量
+const float PI = 3.1415926;
+const float radius = 1.0;
+// 细分坐标(u,v)在0到1之间，
+float u = gl_TessCoord.x;
+float v = gl_TessCoord.y;
+
+// 将一个顶点扩展成一个轴，这里硬编码一个x轴方向上从-20到20的轴
+vec4 position = gl_in[0].gl_Position;
+vec3 startPt= vec3(position.x - 20.0, position.y, position.z);
+vec3 endPt= vec3(position.x + 20.0, position.y, position.z);
+vec3 dir = endPt - startPt;
+
+// 圆形横截面的x轴和y轴, 直接硬编码
+float angleRadians = u * 2.0f * PI;
+vec3 baseXdir = vec3(0.0, 1.0, 0.0);
+vec3 baseYdir = vec3(0.0, 0.0, 1.0);
+
+float arrowRadio = 0.2;
+vec3 originPoint = startPt + v * dir;
+float currentRadius = radius;
+// 计算箭头部分的半径
+if(v < arrowRadio){
+currentRadius = 2 * radius / arrowRadio * v;
+}
+// 以圆心为原点，以另圆周的细分维度计算圆上的点
+vec4 point = vec4(originPoint + currentRadius * cos(angleRadians) * baseXdir + currentRadius * sin(angleRadians) * baseYdir, 1.0);
+// 求解最终的位置
+gl_Position = projection * view * model * point;
+}
+
+
+// layout(quads, equal_spacing, ccw) in;
+//
+// uniform mat4 model;
+// uniform mat4 view;
+// uniform mat4 projection;
+//
+// void main()
+// {
+// // 定义常量
+// 	const float PI = 3.1415926;
+// 	const float radius = 4.0;
+// 	// 细分坐标(u,v)在0到1之间，
+// 	float u = gl_TessCoord.x;
+// 	float v = gl_TessCoord.y;
+//
+// // 将一个顶点扩展成一个轴，这里硬编码一个x轴方向上从-radius到radius的轴
+// 	vec4 position = gl_in[0].gl_Position;
+// 	vec3 startPt= vec3(position.x - radius, position.y, position.z);
+// 	vec3 endPt= vec3(position.x + radius, position.y, position.z);
+// 	vec3 dir = endPt - startPt;
+//
+// // 圆形横截面的x轴和y轴, 直接硬编码
+// 	float angleRadians = u * 2.0f * PI;
+// 	vec3 baseXdir = vec3(0.0, 1.0, 0.0);
+// 	vec3 baseYdir = vec3(0.0, 0.0, 1.0);
+// 	// 以较少的细分等级计算，轴线上的点作为该细分等级的圆心
+// 	vec3 originPoint = startPt + v * dir;
+// 	// 计算当前位置截面上的半径，球体半径、当前轴线上的点到球心线段、当前截面上的半径组成了一个直角三角形
+// 	// 球心在(0,0,0)处，所有简单直接用轴线上的originPoint坐标进行计算了
+// 	float currentRadius = sqrt(radius * radius - dot(originPoint, originPoint));
+// 	// 以圆心为原点，以另圆周的细分维度计算圆上的点
+// 	vec4 point = vec4(originPoint + currentRadius * cos(angleRadians) * baseXdir + currentRadius * sin(angleRadians) * baseYdir, 1.0);
+// 	// 求解最终的位置
+// 	gl_Position = projection * view * model * point;
+// }

@@ -101,11 +101,15 @@ void GraphicsRenderer::init()
         m_program = new QOpenGLShaderProgram();
 
         QString shadersDir = "/Users/fanglee/Project/ProceduralTerrain/shaders/";
-        m_program->addCacheableShaderFromSourceFile(QOpenGLShader::Vertex,   shadersDir + "plane.vert");
-        m_program->addCacheableShaderFromSourceFile(QOpenGLShader::Fragment, shadersDir + "plane.frag");
+        // m_program->addCacheableShaderFromSourceFile(QOpenGLShader::Vertex,   shadersDir + "plane.vert");
+        // m_program->addCacheableShaderFromSourceFile(QOpenGLShader::Fragment, shadersDir + "plane.frag");
+        m_program->addCacheableShaderFromSourceFile(QOpenGLShader::Vertex,   shadersDir + "tessellation.vert");
+        m_program->addCacheableShaderFromSourceFile(QOpenGLShader::Fragment, shadersDir + "tessellation.frag");
+        m_program->addCacheableShaderFromSourceFile(QOpenGLShader::TessellationControl,    shadersDir + "tessellation.tc");
+        m_program->addCacheableShaderFromSourceFile(QOpenGLShader::TessellationEvaluation, shadersDir + "tessellation.te");
 
         m_program->bindAttributeLocation("position", 0);
-        m_program->bindAttributeLocation("texcoord", 1);
+        // m_program->bindAttributeLocation("texcoord", 1);
         m_program->link();
     }
     if (!m_texture.isCreated()) {
@@ -126,62 +130,62 @@ void GraphicsRenderer::render()
 {
     glEnable(GL_DEPTH_TEST);
 
-    glClearColor(0.2f, 0.2f, 0.0f, 1.0f);
+    glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     // 设置多边形模式为线框模式，这样只会绘制多边形的边而不是填充它们
-    if (m_iswireframe)
+    // if (m_iswireframe)
         glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
     m_program->bind();
-    m_texture.bind(0);
+    // m_texture.bind(0);
     m_vao.bind();
     m_vbo.bind();
-    m_ebo.bind();
+    // m_ebo.bind();
     paint();
-    m_ebo.release();
+    // m_ebo.release();
     m_vbo.release();
     m_vao.release();
-    m_texture.release(0);
+    // m_texture.release(0);
     m_program->release();
 }
 
 void GraphicsRenderer::synchronize(QQuickFramebufferObject * item)
 {
-    auto obj = reinterpret_cast<Graphics*>(item);
-    // Setting
-    {
-        m_iswireframe =  obj->iswireframe();
-    }
+    // auto obj = reinterpret_cast<Graphics*>(item);
+    // // Setting
+    // {
+    //     m_iswireframe =  obj->iswireframe();
+    // }
 
-    // float vertexs[] = {
-    //     -0.5f,  0.5f, 0.0f, 0.0f, 1.0f, 0.0,
-    //     -0.5f, -0.5f, 0.0f, 0.0f, 0.0f, 0.0,
-    //      0.5f,  0.5f, 0.0f, 1.0f, 1.0f, 0.0,
-    //      0.5f, -0.5f, 0.0f, 1.0f, 0.0f, 0.0,
-    // };
+    // // float vertexs[] = {
+    // //     -0.5f,  0.5f, 0.0f, 0.0f, 1.0f, 0.0,
+    // //     -0.5f, -0.5f, 0.0f, 0.0f, 0.0f, 0.0,
+    // //      0.5f,  0.5f, 0.0f, 1.0f, 1.0f, 0.0,
+    // //      0.5f, -0.5f, 0.0f, 1.0f, 0.0f, 0.0,
+    // // };
 
-    auto plane = obj->plane();
-    auto vertexs = plane->GetVertexs();
-    m_vbo.bind();
-    m_vbo.allocate(vertexs.data(), vertexs.size() * sizeof(QVector3D));
-    m_vbo.release();
+    // auto plane = obj->plane();
+    // auto vertexs = plane->GetVertexs();
+    // m_vbo.bind();
+    // m_vbo.allocate(vertexs.data(), vertexs.size() * sizeof(QVector3D));
+    // m_vbo.release();
 
-    // ushort indexs[] = {
-    //     0, 1, 2, 3, 1, 2
-    // };
-    auto indexs = plane->GetIndices();
+    // // ushort indexs[] = {
+    // //     0, 1, 2, 3, 1, 2
+    // // };
+    // auto indexs = plane->GetIndices();
 
-    m_ebo.bind();
-    m_ebo.allocate(indexs.data(), sizeof(uint) * indexs.size());
-    m_ebo.release();
+    // m_ebo.bind();
+    // m_ebo.allocate(indexs.data(), sizeof(uint) * indexs.size());
+    // m_ebo.release();
 
-    QString texturesDirPath = "/Users/fanglee/Project/ProceduralTerrain/textures/";
-    QImage img;
-    img.load(texturesDirPath + "833.jpg");
-    img.mirror();
-    auto newimg = img.convertToFormat(QImage::Format_RGB888);
-    m_texture.setData(0, 0, QOpenGLTexture::RGB, QOpenGLTexture::UInt8, newimg.constBits());
+    // QString texturesDirPath = "/Users/fanglee/Project/ProceduralTerrain/textures/";
+    // QImage img;
+    // img.load(texturesDirPath + "833.jpg");
+    // img.mirror();
+    // auto newimg = img.convertToFormat(QImage::Format_RGB888);
+    // m_texture.setData(0, 0, QOpenGLTexture::RGB, QOpenGLTexture::UInt8, newimg.constBits());
 
     auto camera = reinterpret_cast<Graphics*>(item)->camera();
     m_program->bind();
@@ -190,9 +194,15 @@ void GraphicsRenderer::synchronize(QQuickFramebufferObject * item)
     m_program->setUniformValue("model", model);
     m_program->setUniformValue("projection", camera->projection());
     m_program->setUniformValue("view", camera->view());
-    m_program->setUniformValue("step", (float)1.0 / plane->m_size.width());
+    // m_program->setUniformValue("step", (float)1.0 / plane->m_size.width());
     m_program->release();
 
+
+    // 测试细分着色器
+    float vertex[3] = {0.0, 0.0, 0.0};
+    m_vbo.bind();
+    m_vbo.allocate(vertex, 3 * sizeof(float));
+    m_vbo.release();
     // qDebug() << camera->projection()
     //          << camera->view()
     //          << camera->position();
@@ -204,7 +214,7 @@ void GraphicsRenderer::paint()
 {
     // qDebug() << "painting ...";
 
-    glActiveTexture(GL_TEXTURE0);
+    // glActiveTexture(GL_TEXTURE0);
 
     int stride = 3 * sizeof(float);
     m_program->enableAttributeArray(0);
@@ -213,10 +223,12 @@ void GraphicsRenderer::paint()
     m_program->setAttributeBuffer(0, GL_FLOAT, 0, 3, stride);
     // m_program->setAttributeBuffer(1, GL_FLOAT, 3 * sizeof(float), 3, stride);
 
-    m_program->setUniformValue("tex", 0);
+    // m_program->setUniformValue("tex", 0);
     // qDebug() << m_ebo.size() / sizeof(ushort);
-    glDrawElements(GL_TRIANGLES, m_ebo.size() / sizeof(uint), GL_UNSIGNED_INT, nullptr);
+    // glDrawElements(GL_TRIANGLES, m_ebo.size() / sizeof(uint), GL_UNSIGNED_INT, nullptr);
     // glDrawArrays(GL_LINES, 0, 8);
+    glPatchParameteri(GL_PATCH_VERTICES, 1);
+    glDrawArrays(GL_PATCHES, 0, 1);
     m_program->disableAttributeArray(0);
-    m_program->disableAttributeArray(1);
+    // m_program->disableAttributeArray(1);
 }
