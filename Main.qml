@@ -19,21 +19,47 @@ Window {
 
     Setting {
         id: setting
-        z: 1
-        width: 40
-        height: 40
-        visible: true
-        anchors.top: parent.top
-        anchors.right: parent.right
-        anchors.topMargin: 10
-        anchors.rightMargin: 200
-
+        width: 250
         onPlaneSizeChanged: {
             // console.log(planeSize)
-            graphics.updatePlane(planeSize, planeSize);
+            graphics.updatePlaneSize(planeSize, planeSize);
         }
-        onHeightFactChanged: {
-            graphics.heightFact = heightFact
+        onNoise_exponentiationChanged: {
+            graphics.updatePlaneNoise(noise_scale, noise_octaves, noise_persistence
+                                    , noise_lacunarity, noise_exponentiation
+                                    , noise_height, noise_type)
+        }
+
+        onNoise_octavesChanged: {
+            graphics.updatePlaneNoise(noise_scale, noise_octaves, noise_persistence
+                                    , noise_lacunarity, noise_exponentiation
+                                    , noise_height, noise_type)
+        }
+        onNoise_persistenceChanged: {
+            graphics.updatePlaneNoise(noise_scale, noise_octaves, noise_persistence
+                                    , noise_lacunarity, noise_exponentiation
+                                    , noise_height, noise_type)
+        }
+        onNoise_lacunarityChanged: {
+            graphics.updatePlaneNoise(noise_scale, noise_octaves, noise_persistence
+                                    , noise_lacunarity, noise_exponentiation
+                                    , noise_height, noise_type)
+        }
+        onNoise_heightChanged: {
+            graphics.updatePlaneNoise(noise_scale, noise_octaves, noise_persistence
+                                    , noise_lacunarity, noise_exponentiation
+                                    , noise_height, noise_type)
+        }
+        onNoise_typeChanged: {
+            graphics.updatePlaneNoise(noise_scale, noise_octaves, noise_persistence
+                                    , noise_lacunarity, noise_exponentiation
+                                    , noise_height, noise_type)
+        }
+        onMap_heightChanged: {
+            graphics.updatePlaneMapHeight(map_height)
+        }
+        onMap_valueChanged: {
+            graphics.updatePlaneMapImage(map_value)
         }
     }
 

@@ -3,18 +3,38 @@
 
 #include <QVector3D>
 #include <QList>
-#include "FastNoiseLite.h"
 #include <qdebug.h>
+
+// #include "FastNoiseLite.h"
+
+#include "src/NoiseGenerator.h"
+#include "src/Heightmap.h"
+
 
 struct Plane {
     Plane(int w, int h)
         : m_size(w, h)
-        , m_noise(FastNoiseLite(FastNoiseLite::NoiseType::NoiseType_OpenSimplex2))    {
+        , m_heightmap(0, QImage())
+    {
         generateVerticesAndIndices();
     }
 
     void setPlaneSize(int w, int h) {
         m_size = QSize(w, h);
+        generateVerticesAndIndices();
+    }
+    void setNoisePerporties(float scale, float octaves, float persistence, float lacunarity
+                           ,float exponentiation, float height, int noisetype) {
+        m_noise.setNoisePerporties(scale, octaves, persistence, lacunarity, exponentiation, height, noisetype);
+        generateVerticesAndIndices();
+    }
+
+    void setMapHeight(float height) {
+        m_heightmap.setHeight(height);
+        generateVerticesAndIndices();
+    }
+    void setMapImage(QImage image) {
+        m_heightmap.setImage(image);
         generateVerticesAndIndices();
     }
 
@@ -29,7 +49,8 @@ struct Plane {
             for (int col = 0; col <= m_size.width(); ++col) {
                 float x = col;
                 float z = row;
-                float y = m_noise.GetNoise(x, z);
+                // float y = m_noise.Get(x, z);
+                float y = m_heightmap.Get(x, z);
                 // qDebug() << y;
                 m_vertexs.append(QVector3D(x, y, z));  // 平面上顶点的坐标 (x, 0, y)
             }
@@ -69,7 +90,10 @@ struct Plane {
     QList<QVector3D> m_vertexs;   // 顶点坐标
     QList<uint> m_indices;        // 绘制平面的索引
     QSize m_size;                 // 平面的宽高
-    FastNoiseLite m_noise;
+    // FastNoiseLite m_noise;
+
+    NoiseGenerator m_noise;
+    Heightmap m_heightmap;
 };
 
 #endif // PLANE_H

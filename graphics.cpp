@@ -16,11 +16,22 @@ Graphics::Graphics(QQuickItem *parent)
     connect(this, &Graphics::iswireframeChanged, this, [this](){
         this->update();
     });
-    connect(this, &Graphics::updatePlane, this, [this](int w, int h){
+    connect(this, &Graphics::updatePlaneSize, this, [this](int w, int h){
         this->m_plane->setPlaneSize(w, h);
         this->update();
     });
-    connect(this, &Graphics::heightFactChanged, this, [this](){
+    connect(this, &Graphics::updatePlaneNoise, this, [this](float scale, float octaves, float persistence, float lacunarity
+                           ,float exponentiation, float height, int noisetype){
+        this->m_plane->setNoisePerporties(scale, octaves, persistence, lacunarity, exponentiation, height, noisetype);
+        this->update();
+    });
+
+    connect(this, &Graphics::updatePlaneMapHeight, this, [this](float height){
+        this->m_plane->setMapHeight(height);
+        this->update();
+    });
+    connect(this, &Graphics::updatePlaneMapImage, this, [this](QString path){
+        this->m_plane->setMapImage(QImage("/Users/fanglee/Project/ProceduralTerrain/textures/" + path));
         this->update();
     });
 }
@@ -54,19 +65,6 @@ void Graphics::setIswireframe(bool newIswireframe)
 Plane *Graphics::plane() const
 {
     return m_plane;
-}
-
-float Graphics::heightFact() const
-{
-    return m_heightFact;
-}
-
-void Graphics::setHeightFact(float newHeightFact)
-{
-    if (qFuzzyCompare(m_heightFact, newHeightFact))
-        return;
-    m_heightFact = newHeightFact;
-    emit heightFactChanged();
 }
 
 QQuickFramebufferObject::Renderer *Graphics::createRenderer() const
@@ -193,7 +191,6 @@ void GraphicsRenderer::synchronize(QQuickFramebufferObject * item)
     m_program->setUniformValue("projection", camera->projection());
     m_program->setUniformValue("view", camera->view());
     m_program->setUniformValue("step", (float)1.0 / plane->m_size.width());
-    m_program->setUniformValue("heightFact", obj->heightFact());
     m_program->release();
 
     // qDebug() << camera->projection()

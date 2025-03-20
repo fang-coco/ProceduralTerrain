@@ -17,3 +17,16 @@
 
 ![planeshow](showdemo/showplane.gif) 
 
+
+### Part3
+
+* 点一height生成器：通过noise生成、image生成
+* 优化Setting的qml代码。
+
+
+![heihgtmap1](showdemo/heightmap1.png) 
+
+![heihgtmap2](showdemo/heightmap2.png) 
+
+![heihgtmap](showdemo/heightmapshow.gif) 
+

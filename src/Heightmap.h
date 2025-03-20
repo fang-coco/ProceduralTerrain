@@ -11,7 +11,8 @@ public:
 
     float Get(float x, float y) {
         // 实现双线性插值  Bilinear filter
-        const QVector2D offset(-250, -250);
+        if (m_image.isNull()) return 0;
+        const QVector2D offset(0, 0);
         const QVector2D dimensions(500, 500);
 
         const float xf = 1.0 - sat((x - offset.x()) / dimensions.x());
@@ -38,6 +39,10 @@ public:
         return lerp(yp, px1, px2) * m_height;
     }
 
+    void setHeight(float newHeight);
+
+    void setImage(const QImage &newImage);
+
 private:
     float GetPixelAsFloat(int x, int y) {
         QColor color = m_image.pixelColor(x, y);
@@ -59,5 +64,15 @@ private:
     float m_height;
     QImage m_image;
 };
+
+inline void Heightmap::setHeight(float newHeight)
+{
+    m_height = newHeight;
+}
+
+inline void Heightmap::setImage(const QImage &newImage)
+{
+    m_image = newImage;
+}
 
 #endif // HEIGHTMAP_H

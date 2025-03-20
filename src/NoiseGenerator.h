@@ -24,12 +24,23 @@ public:
     }
 
     enum NoiseType {
-        Simplex,
+        Simplex = 0,
         Perlin
     };
 
+    void setNoisePerporties(float scale, float octaves, float persistence, float lacunarity
+                           ,float exponentiation, float height, int noisetype) {
+        m_scale = scale;
+        m_octaves = octaves;
+        m_persistence = persistence;
+        m_lacunarity = lacunarity;
+        m_exponentiation = exponentiation;
+        m_height = height;
+        m_noisetype = noisetype;
+    }
+
 private:
-    float noise2D(int x, int y, int type) {
+    float noise2D(float x, float y, int type) {
         FastNoiseLite noise;
         if (type == NoiseType::Perlin) {
             noise.SetNoiseType(FastNoiseLite::NoiseType_Perlin);
@@ -42,13 +53,13 @@ private:
     }
 
 public:
-    float m_scale;
-    float m_octaves;
-    float m_persistence;
-    float m_lacunarity;
-    float m_exponentiation;
-    float m_height;
-    int m_noisetype;
+    float m_scale = 64.0;
+    float m_octaves = 1;
+    float m_persistence = 0.01;
+    float m_lacunarity = 0.01;
+    float m_exponentiation = 0.1;
+    float m_height = 0;
+    int m_noisetype = NoiseType::Simplex;
 };
 
 #endif // NOISEGENERATOR_H

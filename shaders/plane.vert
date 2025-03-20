@@ -8,7 +8,6 @@ uniform mat4 model;
 uniform mat4 view;
 
 uniform float step;
-uniform float heightFact;
 
 // const vec3 texcoords[4] = vec3[4](
 // vec3(0.0, 1.0, 0),
@@ -19,7 +18,7 @@ uniform float heightFact;
 
 void main(void)
 {
-	gl_Position = projection * view * model * vec4(position.x, position.y * heightFact, position.z, 1.0f);
+	gl_Position = projection * view * model * vec4(position, 1.0f);
 	// texCoord = texcoords[gl_InstanceID % 4];
 	texCoord = vec3(position.x * step, position.z * step, 0);
 }
