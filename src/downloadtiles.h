@@ -5,12 +5,14 @@
 #include <QQueue>
 #include <QMutex>
 #include <QWaitCondition>
-#include <QNetworkAccessManager>
-#include <QNetworkReply>
 #include <QImage>
 
+#include <QNetworkAccessManager>
+
+#include <QNetworkReply>
 #include <QQuickFramebufferObject>
 #include <QOpenGLTexture>
+#include <QOpenGLContext>
 
 struct mapStruct
 {
@@ -32,7 +34,7 @@ class DownLoadTiles : public QObject
 {
     Q_OBJECT
 public:
-    explicit DownLoadTiles(QObject *parent = nullptr);
+    explicit DownLoadTiles(QOpenGLContext* context, QObject *parent = nullptr);
 
     ~DownLoadTiles();
 
@@ -48,6 +50,8 @@ private:
     bool m_stop = false;
 
     QThread m_thread;
+    QOpenGLContext* m_sharedContext;
+
 };
 
 #endif // DOWNLOADTILES_H

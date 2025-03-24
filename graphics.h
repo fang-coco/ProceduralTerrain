@@ -64,7 +64,7 @@ private:
     QVector<ImageEntryToLayer> m_imageEntriesForElevation;
 
 
-    DownLoadTiles m_threads;
+    QScopedPointer<DownLoadTiles> m_threads;
 };
 
 class Graphics : public QQuickFramebufferObject

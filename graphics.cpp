@@ -168,7 +168,7 @@ int GraphicsRenderer::satelliteTextureLayerFor(int zoom, quint64 x, quint64 y, C
         tile.y = e.tileY;
         tile.zoom = e.zoom;
         tile.texture = &m_satelliteTexture;
-        m_threads.addTask(tile);
+        m_threads->addTask(tile);
 //        QImage img = builder->imageryTiles(ImageryTileProvider::Satellite, zoom, x, y);
 //        auto newimg = img.convertToFormat(QImage::Format_RGB888);
 //        m_satelliteTexture.setData(0, e.layerId, QOpenGLTexture::RGB, QOpenGLTexture::UInt8, newimg.constBits());
@@ -241,6 +241,9 @@ GraphicsRenderer::GraphicsRenderer()
     , m_imageEntriesForSatellite(maxTextureMappingInfoCount)
     , m_vbo(QOpenGLBuffer(QOpenGLBuffer::VertexBuffer))
 {
+    QOpenGLContext mainContext;
+    mainContext.create();
+    m_threads.reset(new DownLoadTiles(&mainContext));
     init();
 }
 

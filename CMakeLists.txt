@@ -45,7 +45,8 @@ qt_add_qml_module(appProceduralTerrain
 		RESOURCES shaders/cubesphere.tc
 		RESOURCES shaders/cubesphere.te
         RESOURCES shaders/cubesphere.geom
-        SOURCES src/downloadtiles.h src/downloadtiles.cpp
+        SOURCES src/downloadtiles.h
+        src/downloadtiles.cpp
 )
 
 # Qt for iOS sets MACOSX_BUNDLE_GUI_IDENTIFIER automatically since Qt 6.1.
