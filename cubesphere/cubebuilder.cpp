@@ -8,7 +8,7 @@
 
 CubeBuilder::CubeBuilder(const int baseLevel,
                          const int maxLevel,
-                         Qt3DRender::QCamera *camera)
+                         Camera *camera)
     : m_cullPlanes(6)
     , m_baseLevel(baseLevel)
     , m_maxLevel(maxLevel)
@@ -80,7 +80,8 @@ CubeBuilder::~CubeBuilder()
 void CubeBuilder::update()
 {
     // Update frustum culling planes
-    m_viewProjection = m_camera->projectionMatrix() * m_camera->viewMatrix();
+    setViewportSize(m_camera->viewportSize());
+    m_viewProjection = m_camera->projection() * m_camera->view();
     m_cullPlanes[0] = Plane(m_viewProjection.row(3) + m_viewProjection.row(0)); // Left
     m_cullPlanes[1] = Plane(m_viewProjection.row(3) - m_viewProjection.row(0)); // Right
     m_cullPlanes[2] = Plane(m_viewProjection.row(3) + m_viewProjection.row(1)); // Top
@@ -113,6 +114,11 @@ void CubeBuilder::update()
 QUrl CubeBuilder::imageryUrls(ImageryTileProvider::ImageryType type, int zoom, quint64 x, quint64 y) const
 {
     return m_tileProviders.value(type)->imageryUrl(zoom, x, y);
+}
+
+QImage CubeBuilder::imageryTiles(ImageryTileProvider::ImageryType type, int zoom, quint64 x, quint64 y) const
+{
+    return m_tileProviders.value(type)->imageryTile(zoom, x, y);
 }
 
 void CubeBuilder::subDivideQuadFace(CubeFace *face)
@@ -218,17 +224,17 @@ bool CubeBuilder::shouldNodeBeSplit(QuadNode *node) const
 
     // Check if node actually needs to be subdivided
     const QRect viewPort = QRect(0, 0, m_viewportSize.width(), m_viewportSize.height());
-    const QVector3D nwPosScreenPos = nw.toQVector3D().project(m_camera->viewMatrix(),
-                                                              m_camera->projectionMatrix(),
+    const QVector3D nwPosScreenPos = nw.toQVector3D().project(m_camera->view(),
+                                                              m_camera->projection(),
                                                               viewPort);
-    const QVector3D swPosScreenPos =  sw.toQVector3D().project(m_camera->viewMatrix(),
-                                                               m_camera->projectionMatrix(),
+    const QVector3D swPosScreenPos =  sw.toQVector3D().project(m_camera->view(),
+                                                               m_camera->projection(),
                                                                viewPort);
-    const QVector3D nePosScreenPos =  ne.toQVector3D().project(m_camera->viewMatrix(),
-                                                               m_camera->projectionMatrix(),
+    const QVector3D nePosScreenPos =  ne.toQVector3D().project(m_camera->view(),
+                                                               m_camera->projection(),
                                                                viewPort);
-    const QVector3D sePosScreenPos =  se.toQVector3D().project(m_camera->viewMatrix(),
-                                                               m_camera->projectionMatrix(),
+    const QVector3D sePosScreenPos =  se.toQVector3D().project(m_camera->view(),
+                                                               m_camera->projection(),
                                                                viewPort);
 
     // If node is visible, check if it's size requires it to be subdivided further

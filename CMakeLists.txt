@@ -8,6 +8,7 @@ set(CMAKE_AUTOMOC ON)
 
 find_package(Qt6 REQUIRED COMPONENTS
 	Quick
+    Network
 )
 
 qt_standard_project_setup(REQUIRES 6.5)
@@ -25,7 +26,7 @@ qt_add_qml_module(appProceduralTerrain
 		SOURCES src/HeightGenerator.h
 		SOURCES src/Heightmap.h
 		SOURCES src/NoiseGenerator.h
-		SOURCES manager.h manager.cpp
+        SOURCES manager.h manager.cpp
 		SOURCES camera.h camera.cpp
 		QML_FILES CameraController.qml
 		SOURCES graphics.h graphics.cpp
@@ -39,6 +40,12 @@ qt_add_qml_module(appProceduralTerrain
 		RESOURCES shaders/tessellation.frag
 		RESOURCES shaders/tessellation.te
 		RESOURCES shaders/tessellation.tc
+		RESOURCES shaders/cubesphere.vert
+		RESOURCES shaders/cubesphere.frag
+		RESOURCES shaders/cubesphere.tc
+		RESOURCES shaders/cubesphere.te
+        RESOURCES shaders/cubesphere.geom
+        SOURCES src/downloadtiles.h src/downloadtiles.cpp
 )
 
 # Qt for iOS sets MACOSX_BUNDLE_GUI_IDENTIFIER automatically since Qt 6.1.
@@ -52,11 +59,15 @@ set_target_properties(appProceduralTerrain PROPERTIES
     WIN32_EXECUTABLE TRUE
 )
 
+add_subdirectory(cubesphere/)
+
 target_include_directories(appProceduralTerrain PRIVATE
 	thrid-part/FastNoiseLite
 )
 target_link_libraries(appProceduralTerrain PRIVATE
 	Qt6::Quick
+    Qt6::Network
+	cubesphere
 )
 
 include(GNUInstallDirs)

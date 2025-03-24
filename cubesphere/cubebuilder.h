@@ -1,17 +1,16 @@
 #ifndef CUBEBUILDER_H
 #define CUBEBUILDER_H
 
-#include <QtGui/QVector3D>
-#include <QtGui/QVector4D>
-#include <QtGui/QMatrix4x4>
+#include <QVector3D>
+#include <QVector4D>
+#include <QMatrix4x4>
 #include <qdoublevector3d_p.h>
 #include <cmath>
+
 #include "cubesphere.h"
 #include "imagerytileprovider.h"
 
-namespace Qt3DRender {
-class QCamera;
-} // Qt3DRender
+#include "../camera.h"
 
 class QuadNode;
 class ImageryTileProvider;
@@ -52,13 +51,14 @@ class CubeBuilder
 public:
     CubeBuilder(const int baseLevel,
                 const int maxLevel,
-                Qt3DRender::QCamera *camera);
+                Camera *camera);
 
     ~CubeBuilder();
 
     void update();
 
     QUrl imageryUrls(ImageryTileProvider::ImageryType type, int zoom, quint64 x, quint64 y) const;
+    QImage imageryTiles(ImageryTileProvider::ImageryType type, int zoom, quint64 x, quint64 y) const;
     QVector<QUrl> elevationUrls() const;
 
     QVector<QDoubleVector3D> sphereVertices() const;
@@ -71,8 +71,8 @@ public:
     void setMaxLevel(int maxLevel) { m_maxLevel = maxLevel; }
     inline int maxLevel() const { return m_maxLevel; }
 
-    inline Qt3DRender::QCamera *camera() const { return m_camera; }
-    void setCamera(Qt3DRender::QCamera *camera) { m_camera = camera; }
+    // inline Qt3DRender::QCamera *camera() const { return m_camera; }
+    // void setCamera(Qt3DRender::QCamera *camera) { m_camera = camera; }
 
     inline QSize viewportSize() const { return m_viewportSize; }
     void setViewportSize(QSize viewportSize) { m_viewportSize = viewportSize; }
@@ -124,7 +124,7 @@ private:
 
     int m_baseLevel;
     int m_maxLevel;
-    Qt3DRender::QCamera *m_camera;
+    Camera *m_camera;
     QSize m_viewportSize;
     Cube m_cube;
     QMatrix4x4 m_viewProjection;

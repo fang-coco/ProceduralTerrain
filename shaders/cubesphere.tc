@@ -1,0 +1,37 @@
+#version 400 core
+
+layout(vertices = 4) out;
+
+out VertexData {
+    flat int indexIntoUBO;
+    vec3 color;
+    vec2 texCoords;
+} vertexOut[];
+
+// #define TILE_SUBDIVISION 3
+
+uniform int subdivision;
+
+vec3 hsv2rgb(vec3 c)
+{
+    vec4 K = vec4(1.0, 2.0 / 3.0, 1.0 / 3.0, 3.0);
+    vec3 p = abs(fract(c.xxx + K.xyz) * 6.0 - K.www);
+    return c.z * mix(K.xxx, clamp(p - K.xxx, 0.0, 1.0), c.y);
+}
+
+void main(void)
+{
+    if (gl_InvocationID == 0) {
+        gl_TessLevelInner[0] = subdivision;
+        gl_TessLevelInner[1] = subdivision;
+
+        gl_TessLevelOuter[0] = subdivision;
+        gl_TessLevelOuter[1] = subdivision;
+        gl_TessLevelOuter[2] = subdivision;
+        gl_TessLevelOuter[3] = subdivision;
+    }
+
+    gl_out[gl_InvocationID].gl_Position = vec4(gl_in[gl_InvocationID].gl_Position.xyz, 1.0);
+    vertexOut[gl_InvocationID].color = hsv2rgb(vec3(gl_PrimitiveID / 256.0, 0.5, 0.5));
+    vertexOut[gl_InvocationID].indexIntoUBO = int(gl_in[gl_InvocationID].gl_Position.w);
+}

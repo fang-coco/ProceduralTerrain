@@ -4,12 +4,17 @@ MapzenSatelliteImageryTileProvider::MapzenSatelliteImageryTileProvider()
 {
 }
 
+#include <QDebug>
 QUrl MapzenSatelliteImageryTileProvider::imageryUrl(quint64 zoom, quint64 x, quint64 y)
 {
 //    const QString tileName = m_tileBaseName + QString("%1_%2_%3.jpg").arg(int(zoom), int(x), int(y));
 //    return QUrl::fromLocalFile(m_tileDirectory + tileName);
 //    const QString tileName = QString("/home/lemire_p/work/cubespheretextures/src/textures/satellite/satellite_%1_%2_%3.jpg").arg(int(zoom), int(x), int(y));
-    const QString tileName = QString("/home/lemire_p/work/cubespheretextures/src/textures/satellite/satellite_") + QString::number(zoom) + QString("_") + QString::number(x) + "_" + QString::number(y) + QString(".jpg");
+
+//    const QString tileName = QString("/home/lemire_p/work/cubespheretextures/src/textures/satellite/satellite_") + QString::number(zoom) + QString("_") + QString::number(x) + "_" + QString::number(y) + QString(".jpg");
+
+
+    const QString tileName = QString("/Users/fanglee/Project/ProceduralTerrain/textures/833.jpg");
     return QUrl::fromLocalFile(tileName);
 }
 

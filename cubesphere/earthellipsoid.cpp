@@ -2,7 +2,8 @@
 #include "geodetic.h"
 #include <cmath>
 
-const QDoubleVector3D EarthEllipsoid::wgs84Radii = QDoubleVector3D(6378137.0, 6356752.3, 6378137.0); // (in meters)
+// const QDoubleVector3D EarthEllipsoid::wgs84Radii = QDoubleVector3D(6378137.0, 6356752.3, 6378137.0); // (in meters)
+const QDoubleVector3D EarthEllipsoid::wgs84Radii = QDoubleVector3D(6.378137, 6.3567523, 6.378137); // (in meters)
 const QDoubleVector3D EarthEllipsoid::wgs84RadiiSquared = EarthEllipsoid::wgs84Radii * EarthEllipsoid::wgs84Radii;
 const QDoubleVector3D EarthEllipsoid::oneOverWgs84RadiiSquared = QDoubleVector3D(1.0 / (EarthEllipsoid::wgs84Radii.x() * EarthEllipsoid::wgs84Radii.x()),
                                                                    1.0 / (EarthEllipsoid::wgs84Radii.y() * EarthEllipsoid::wgs84Radii.y()),
