@@ -21,7 +21,10 @@ static const QSize TEXTURE_SIZE = QSize(256, 256);
 Graphics::Graphics(QQuickItem *parent)
     : QQuickFramebufferObject(parent)
     , m_camera(new Camera)
-    , m_builder(new CubeBuilder(5, 15, m_camera))
+    , m_builder(new CubeBuilder(3, 15, m_camera))
+    , m_threads(new DownLoadTiles)
+    , m_imageEntriesForSatellite(maxTextureMappingInfoCount)
+    , m_imageEntriesForElevation(maxTextureMappingInfoCount)
 {
     connect(this, &Graphics::updateCamera
           , this, [this](float fov, QSize viewportSize
@@ -30,22 +33,24 @@ Graphics::Graphics(QQuickItem *parent)
                        , QVector3D up) {
         // qDebug() << "camera update";
         m_camera->updateCameraProperties(fov, viewportSize, clipNear, clipFar, position, front, up);
-        m_builder->update();
-        this->update();
+        dataUpdate();
     });
     connect(this, &Graphics::useImageryChanged, this, [this](){
-        this->update();
+        dataUpdate();
     });
     connect(this, &Graphics::useElevationChanged, this, [this](){
-        this->update();
+        dataUpdate();
     });
     connect(this, &Graphics::useWireFrameChanged, this, [this](){
-        this->update();
-        qDebug() << "wireframe change";
+        dataUpdate();
     });
     connect(this, &Graphics::subdivisionChanged, this, [this](){
+        dataUpdate();
+    });
+
+    connect(m_threads, &DownLoadTiles::completeTask, this, [this](const textureToLayer texture) -> void {
+        m_textures.append(texture);
         this->update();
-        qDebug() << "subdivision change: " << m_subdivision;
     });
 }
 
@@ -111,7 +116,134 @@ void Graphics::setSubdivision(int newSubdivision)
     emit subdivisionChanged();
 }
 
-void GraphicsRenderer::updateImageryScores()
+QByteArray Graphics::vertexData() const
+{
+    return m_vertexData;
+}
+
+QByteArray Graphics::uboSateData() const
+{
+    return m_uboSateData;
+}
+
+QByteArray Graphics::uboElevData() const
+{
+    return m_uboElevData;
+}
+
+void Graphics::dataUpdate()
+{
+    m_builder->update();
+    // SPHERE VERTICES
+    {
+        m_vertexData.clear();
+        // Copy vertex data to buffers
+        const QVector<QDoubleVector3D> vertices = m_builder->sphereVertices();
+        const QDoubleVector3D eyePos = m_camera->position();
+        QVector<QVector4D> verticesRelativeToEye(vertices.size());
+
+        int i = 0;
+        // We transform each world vertex so that it is relative to eye
+        for (const QDoubleVector3D &vec3d : vertices) {
+            const QDoubleVector3D rte = vec3d - eyePos;
+            // We slightly abuse from the 4th component of the vertex
+            // to store the vertex entry into the UBO
+            const int indexIntoUBO = i / 4; // Same index for all the vertices of a same tile
+            const QVector4D rteVertexData(rte.toQVector3D(), indexIntoUBO);
+            verticesRelativeToEye[i++] = rteVertexData;
+        }
+
+        const int vertexBufferByteSize = vertices.size() * sizeof(QVector4D);
+        m_vertexData.resize(vertexBufferByteSize);
+        memcpy(m_vertexData.data(), verticesRelativeToEye.constData(), vertexBufferByteSize);
+
+    }
+
+    // ubo
+    {
+        if (m_useImagery) {
+            m_uboSateData.clear();
+            m_uboSateData.resize(maxUniformBlockSize);
+            TextureMappingInfo *textureMappings = reinterpret_cast<TextureMappingInfo *>(m_uboSateData.data());
+            const QVector<TileImageryMapping> mappings = m_builder->tileImageMappings(ImageryTileProvider::Satellite);
+
+            // 1 Tile Imagery Mapping contains up to 4 ImageryMappings
+            // Each ImageryMapping contains
+            // offsetXY to textureCoords
+            // extentXY
+            // scaleXY
+            // textureLayer
+            for (int i = 0, m = qMin(maxTextureMappingInfoCount, mappings.size()); i < m; ++i) {
+                const TileImageryMapping &mapping = mappings.at(i);
+                for (int j = 0; j < 4; ++j) {
+                    const ImageryMapping &vertexMapping = mapping.mappingEntries[j];
+                    if (vertexMapping.zoom == -1) {
+                         textureMappings[i].layerScaleOffset[j][0] = -1.0f;
+                    } else {
+                        const float layer = satelliteTextureLayerFor(vertexMapping.zoom,
+                                                                     vertexMapping.tileX,
+                                                                     vertexMapping.tileY);
+                        textureMappings[i].layerScaleOffset[j] = QVector4D(layer,
+                                                                            vertexMapping.scale,
+                                                                            vertexMapping.offsetX,
+                                                                            vertexMapping.offsetY);
+                        textureMappings[i].extentMinMax[j] = QVector4D(vertexMapping.extentXMin,
+                                                                       vertexMapping.extentYMin,
+                                                                       vertexMapping.extentXMax,
+                                                                       vertexMapping.extentYMax);
+                    }
+                }
+            }
+
+        }
+
+        // Perform UBO update for Elevation Imagery
+        if (m_useElevation) {
+            m_uboElevData.clear();
+            m_uboElevData.resize(maxUniformBlockSize);
+            TextureMappingInfo *textureMappings = reinterpret_cast<TextureMappingInfo *>(m_uboElevData.data());
+            const QVector<TileImageryMapping> mappings = m_builder->tileImageMappings(ImageryTileProvider::Elevation);
+
+            // 1 Tile Imagery Mapping contains up to 4 ImageryMappings
+            // Each ImageryMapping contains
+            // offsetXY to textureCoords
+            // extentXY
+            // scaleXY
+            // textureLayer
+            for (int i = 0, m = qMin(maxTextureMappingInfoCount, mappings.size()); i < m; ++i) {
+                const TileImageryMapping &mapping = mappings.at(i);
+                for (int j = 0; j < 4; ++j) {
+                    const ImageryMapping &vertexMapping = mapping.mappingEntries[j];
+                    if (vertexMapping.zoom == -1) {
+                         textureMappings[i].layerScaleOffset[j][0] = -1.0f;
+                    } else {
+                        const float layer = elevationTextureLayerFor(vertexMapping.zoom,
+                                                                     vertexMapping.tileX,
+                                                                     vertexMapping.tileY);
+                        textureMappings[i].layerScaleOffset[j] = QVector4D(layer,
+                                                                            vertexMapping.scale,
+                                                                            vertexMapping.offsetX,
+                                                                            vertexMapping.offsetY);
+                        textureMappings[i].extentMinMax[j] = QVector4D(vertexMapping.extentXMin,
+                                                                       vertexMapping.extentYMin,
+                                                                       vertexMapping.extentXMax,
+                                                                       vertexMapping.extentYMax);
+                    }
+                }
+            }
+        }
+    }
+
+    this->update();
+    updateImageryScores();
+}
+
+QVector<Graphics::ImageEntryToLayer> Graphics::imageEntriesForSatellite() const
+{
+    return m_imageEntriesForSatellite;
+}
+
+void Graphics::updateImageryScores()
 {
     for (ImageEntryToLayer &e : m_imageEntriesForSatellite)
         --e.score;
@@ -119,7 +251,7 @@ void GraphicsRenderer::updateImageryScores()
         --e.score;
 }
 
-int GraphicsRenderer::satelliteTextureLayerFor(int zoom, quint64 x, quint64 y, CubeBuilder* builder)
+int Graphics::satelliteTextureLayerFor(int zoom, quint64 x, quint64 y)
 {
     int matchingIdx = -1;
     int nearestUnused = -1;
@@ -163,22 +295,18 @@ int GraphicsRenderer::satelliteTextureLayerFor(int zoom, quint64 x, quint64 y, C
         e.tileY = y;
 
         mapStruct tile;
+        tile.type = 1;
         tile.layer = e.layerId;
         tile.x = e.tileX;
         tile.y = e.tileY;
         tile.zoom = e.zoom;
-        tile.texture = &m_satelliteTexture;
         m_threads->addTask(tile);
-//        QImage img = builder->imageryTiles(ImageryTileProvider::Satellite, zoom, x, y);
-//        auto newimg = img.convertToFormat(QImage::Format_RGB888);
-//        m_satelliteTexture.setData(0, e.layerId, QOpenGLTexture::RGB, QOpenGLTexture::UInt8, newimg.constBits());
         return e.layerId;
-
     }
     return 0;
 }
 
-int GraphicsRenderer::elevationTextureLayerFor(int zoom, quint64 x, quint64 y, CubeBuilder * builder)
+int Graphics::elevationTextureLayerFor(int zoom, quint64 x, quint64 y)
 {
     int matchingIdx = -1;
     int nearestUnused = -1;
@@ -221,12 +349,32 @@ int GraphicsRenderer::elevationTextureLayerFor(int zoom, quint64 x, quint64 y, C
         e.zoom = zoom;
         e.tileX = x;
         e.tileY = y;
-        QImage img = builder->imageryTiles(ImageryTileProvider::Elevation, zoom, x, y);
-        auto newimg = img.convertToFormat(QImage::Format_RGB888);
-        m_elevationTexture.setData(0, e.layerId, QOpenGLTexture::RGB, QOpenGLTexture::UInt8, newimg.constBits());
+
+        mapStruct tile;
+        tile.type = 2;
+        tile.layer = e.layerId;
+        tile.x = e.tileX;
+        tile.y = e.tileY;
+        tile.zoom = e.zoom;
+        m_threads->addTask(tile);
+
+//        QImage img = builder->imageryTiles(ImageryTileProvider::Elevation, zoom, x, y);
+//        auto newimg = img.convertToFormat(QImage::Format_RGB888);
+//        m_elevationTexture.setData(0, e.layerId, QOpenGLTexture::RGB, QOpenGLTexture::UInt8, newimg.constBits());
         return e.layerId;
     }
     return 0;
+}
+
+QVector<textureToLayer> Graphics::textures() const
+{
+    return m_textures;
+}
+
+void Graphics::clearTextures()
+{
+    m_textures.clear();
+    m_textures.resize(0);
 }
 
 QQuickFramebufferObject::Renderer *Graphics::createRenderer() const
@@ -237,13 +385,8 @@ QQuickFramebufferObject::Renderer *Graphics::createRenderer() const
 GraphicsRenderer::GraphicsRenderer()
     : m_satelliteTexture(QOpenGLTexture(QOpenGLTexture::Target2DArray))
     , m_elevationTexture(QOpenGLTexture(QOpenGLTexture::Target2DArray))
-    , m_imageEntriesForElevation(maxTextureMappingInfoCount)
-    , m_imageEntriesForSatellite(maxTextureMappingInfoCount)
     , m_vbo(QOpenGLBuffer(QOpenGLBuffer::VertexBuffer))
 {
-    QOpenGLContext mainContext;
-    mainContext.create();
-    m_threads.reset(new DownLoadTiles(&mainContext));
     init();
 }
 
@@ -310,7 +453,7 @@ void GraphicsRenderer::init()
          m_satelliteTexture.allocateStorage();
     }
 
-        if (!m_elevationTexture.isCreated()) {
+    if (!m_elevationTexture.isCreated()) {
          m_elevationTexture.create();
          m_elevationTexture.setLayers(MAX_LAYER_COUNT);
          m_elevationTexture.setSize(TEXTURE_SIZE.width(), TEXTURE_SIZE.height());
@@ -321,7 +464,6 @@ void GraphicsRenderer::init()
     if (!m_vao.isCreated()) m_vao.create();
     if (!m_vbo.isCreated()) m_vbo.create();
 }
-
 
 void GraphicsRenderer::render()
 {
@@ -350,7 +492,6 @@ void GraphicsRenderer::synchronize(QQuickFramebufferObject * item)
 {
     auto obj = reinterpret_cast<Graphics*>(item);
     auto camera = reinterpret_cast<Graphics*>(item)->camera();
-    auto builder = reinterpret_cast<Graphics*>(item)->builder();
 
     // uniform
     {
@@ -366,124 +507,32 @@ void GraphicsRenderer::synchronize(QQuickFramebufferObject * item)
         m_program->release();
     }
 
-    // SPHERE VERTICES
+    // sphere vertex
     {
-        // Copy vertex data to buffers
-        const QVector<QDoubleVector3D> vertices = builder->sphereVertices();
-        const QDoubleVector3D eyePos = camera->position();
-        QVector<QVector4D> verticesRelativeToEye(vertices.size());
-
-        int i = 0;
-        // We transform each world vertex so that it is relative to eye
-        for (const QDoubleVector3D &vec3d : vertices) {
-            const QDoubleVector3D rte = vec3d - eyePos;
-            // We slightly abuse from the 4th component of the vertex
-            // to store the vertex entry into the UBO
-            const int indexIntoUBO = i / 4; // Same index for all the vertices of a same tile
-            const QVector4D rteVertexData(rte.toQVector3D(), indexIntoUBO);
-            verticesRelativeToEye[i++] = rteVertexData;
-        }
-
-        QByteArray vertexData;
-        const int vertexBufferByteSize = vertices.size() * sizeof(QVector4D);
-        vertexData.resize(vertexBufferByteSize);
-        memcpy(vertexData.data(), verticesRelativeToEye.constData(), vertexBufferByteSize);
-
+        auto vertexData = obj->vertexData();
         m_vbo.bind();
         m_vbo.allocate(vertexData.data(), vertexData.size());
         m_vbo.release();
 
-        // Each tile has 4 corners, tessellation shaders will convert that to 8x8 grids
-        const int patchesCount = vertices.size() / 4;
-        qDebug() << patchesCount;
+//        Each tile has 4 corners, tessellation shaders will convert that to 8x8 grids
+//        const int patchesCount = vertices.size() / 4;
+//        qDebug() << patchesCount;
+
     }
 
 
     // uniform block buffer
     {
-        // // 测试细分着色器
-        // float vertex[3] = {0.0, 0.0, 0.0};
-        // m_vbo.bind();
-        // m_vbo.allocate(vertex, 3 * sizeof(float));
-        // m_vbo.release();
-        // qDebug() << camera->projection()
-        //          << camera->view()
-        //          << camera->position();
-
         m_program->bind();
         if (obj->useImagery()) {
-            QByteArray uboData;
-            uboData.resize(maxUniformBlockSize);
-            TextureMappingInfo *textureMappings = reinterpret_cast<TextureMappingInfo *>(uboData.data());
-            const QVector<TileImageryMapping> mappings = builder->tileImageMappings(ImageryTileProvider::Satellite);
-
-            // 1 Tile Imagery Mapping contains up to 4 ImageryMappings
-            // Each ImageryMapping contains
-            // offsetXY to textureCoords
-            // extentXY
-            // scaleXY
-            // textureLayer
-            for (int i = 0, m = qMin(maxTextureMappingInfoCount, mappings.size()); i < m; ++i) {
-                const TileImageryMapping &mapping = mappings.at(i);
-                for (int j = 0; j < 4; ++j) {
-                    const ImageryMapping &vertexMapping = mapping.mappingEntries[j];
-                    if (vertexMapping.zoom == -1) {
-                         textureMappings[i].layerScaleOffset[j][0] = -1.0f;
-                    } else {
-                        const float layer = satelliteTextureLayerFor(vertexMapping.zoom,
-                                                                     vertexMapping.tileX,
-                                                                     vertexMapping.tileY, builder);
-                        textureMappings[i].layerScaleOffset[j] = QVector4D(layer,
-                                                                            vertexMapping.scale,
-                                                                            vertexMapping.offsetX,
-                                                                            vertexMapping.offsetY);
-                        textureMappings[i].extentMinMax[j] = QVector4D(vertexMapping.extentXMin,
-                                                                       vertexMapping.extentYMin,
-                                                                       vertexMapping.extentXMax,
-                                                                       vertexMapping.extentYMax);
-                    }
-                }
-            }
-
+            auto uboData = obj->uboSateData();
             glBindBuffer(GL_UNIFORM_BUFFER, m_satelliteUbo);
             glBufferSubData(GL_UNIFORM_BUFFER, 0, maxUniformBlockSize, uboData.constData());
             glBindBuffer(GL_UNIFORM_BUFFER, 0);
         }
 
-        // Perform UBO update for Elevation Imagery
-        if (m_useElevation) {
-            QByteArray uboData;
-            uboData.resize(maxUniformBlockSize);
-            TextureMappingInfo *textureMappings = reinterpret_cast<TextureMappingInfo *>(uboData.data());
-            const QVector<TileImageryMapping> mappings = builder->tileImageMappings(ImageryTileProvider::Elevation);
-
-            // 1 Tile Imagery Mapping contains up to 4 ImageryMappings
-            // Each ImageryMapping contains
-            // offsetXY to textureCoords
-            // extentXY
-            // scaleXY
-            // textureLayer
-            for (int i = 0, m = qMin(maxTextureMappingInfoCount, mappings.size()); i < m; ++i) {
-                const TileImageryMapping &mapping = mappings.at(i);
-                for (int j = 0; j < 4; ++j) {
-                    const ImageryMapping &vertexMapping = mapping.mappingEntries[j];
-                    if (vertexMapping.zoom == -1) {
-                         textureMappings[i].layerScaleOffset[j][0] = -1.0f;
-                    } else {
-                        const float layer = elevationTextureLayerFor(vertexMapping.zoom,
-                                                                     vertexMapping.tileX,
-                                                                     vertexMapping.tileY, builder);
-                        textureMappings[i].layerScaleOffset[j] = QVector4D(layer,
-                                                                            vertexMapping.scale,
-                                                                            vertexMapping.offsetX,
-                                                                            vertexMapping.offsetY);
-                        textureMappings[i].extentMinMax[j] = QVector4D(vertexMapping.extentXMin,
-                                                                       vertexMapping.extentYMin,
-                                                                       vertexMapping.extentXMax,
-                                                                       vertexMapping.extentYMax);
-                    }
-                }
-            }
+        if (obj->useElevation()) {
+            auto uboData = obj->uboElevData();
             glBindBuffer(GL_UNIFORM_BUFFER, m_elevationUbo);
             glBufferSubData(GL_UNIFORM_BUFFER, 0, maxUniformBlockSize, uboData.constData());
             glBindBuffer(GL_UNIFORM_BUFFER, 0);
@@ -491,16 +540,27 @@ void GraphicsRenderer::synchronize(QQuickFramebufferObject * item)
         m_program->release();
     }
 
-    updateImageryScores();
+    // texture
+    {
+        auto textures = obj->textures();
+        for (const auto& texture: textures) {
+            if (texture.type == 1) {
+                m_satelliteTexture.setData(0, texture.layerId, QOpenGLTexture::RGB, QOpenGLTexture::UInt8, texture.img.constBits());
+            } else {
+                m_elevationTexture.setData(0, texture.layerId, QOpenGLTexture::RGB, QOpenGLTexture::UInt8, texture.img.constBits());
+            }
+        }
+        obj->clearTextures();
+    }
+
 }
 
 
 void GraphicsRenderer::paint()
 {
     // qDebug() << "painting ...";
-
-     glActiveTexture(GL_TEXTURE0);
-     glActiveTexture(GL_TEXTURE1);
+    glActiveTexture(GL_TEXTURE0);
+    glActiveTexture(GL_TEXTURE1);
 
     int stride = 4 * sizeof(float);
     m_program->enableAttributeArray(0);

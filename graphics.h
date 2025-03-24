@@ -26,21 +26,6 @@ public:
     void init();
     void paint();
 
-    struct ImageEntryToLayer
-    {
-        int zoom = 0;
-        int score = -1;
-        int layerId = -1;
-        quint64 tileX = 0;
-        quint64 tileY = 0;
-    };
-
-
-    void updateImageryScores();
-
-    // Renderer interface
-    int satelliteTextureLayerFor(int zoom, quint64 x, quint64 y, CubeBuilder *builder);
-    int elevationTextureLayerFor(int zoom, quint64 x, quint64 y, CubeBuilder *builder);
 protected:
     virtual void render() override;
     virtual QOpenGLFramebufferObject *createFramebufferObject(const QSize &size) override;
@@ -55,16 +40,6 @@ private:
     GLuint m_satelliteUbo;
     GLuint m_elevationUbo;
 
-    bool m_useImagery;
-    bool m_useElevation;
-    int m_currImageryLayer;
-    int m_currElevationLayer;
-
-    QVector<ImageEntryToLayer> m_imageEntriesForSatellite;
-    QVector<ImageEntryToLayer> m_imageEntriesForElevation;
-
-
-    QScopedPointer<DownLoadTiles> m_threads;
 };
 
 class Graphics : public QQuickFramebufferObject
@@ -94,6 +69,29 @@ public:
     int subdivision() const;
     void setSubdivision(int newSubdivision);
 
+
+    struct ImageEntryToLayer
+    {
+        int zoom = 0;
+        int score = -1;
+        int layerId = -1;
+        quint64 tileX = 0;
+        quint64 tileY = 0;
+    };
+
+
+    QByteArray vertexData() const;
+
+    QByteArray uboSateData() const;
+
+    QByteArray uboElevData() const;
+
+    QVector<ImageEntryToLayer> imageEntriesForSatellite() const;
+
+    QVector<textureToLayer> textures() const;
+    void clearTextures();
+
+
 signals:
     void updateCamera(float fov, QSize viewportSize
                     , float clipNear, float clipFar
@@ -109,9 +107,34 @@ signals:
     void subdivisionChanged();
 
 private:
+    void dataUpdate();
+
+private:
     Camera* m_camera = nullptr;
     CubeBuilder* m_builder = nullptr;
+    DownLoadTiles* m_threads = nullptr;
 
+    QByteArray m_vertexData;
+    QByteArray m_uboSateData;
+    QByteArray m_uboElevData;
+
+
+    void updateImageryScores();
+
+    // Renderer interface
+    int satelliteTextureLayerFor(int zoom, quint64 x, quint64 y);
+    int elevationTextureLayerFor(int zoom, quint64 x, quint64 y);
+
+    int m_currImageryLayer;
+    int m_currElevationLayer;
+
+    QVector<ImageEntryToLayer> m_imageEntriesForSatellite;
+    QVector<ImageEntryToLayer> m_imageEntriesForElevation;
+
+    QVector<textureToLayer> m_textures;
+
+
+private:
     int m_subdivision;
     bool m_useImagery;
     bool m_useElevation;
